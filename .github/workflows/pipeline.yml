@@ -66,8 +66,16 @@ jobs:
           name: data-splits
       - name: Start MLflow Server
         run: |
-          nohup mlflow ui --host 0.0.0.0 --port 5000 &  # Run MLflow UI in the background
-          sleep 5  # Wait for a moment to let the server starts
+          nohup mlflow server --host 0.0.0.0 --port 5000 > mlflow_server.log 2>&1 &
+          echo "Waiting for MLflow server to be ready..."
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ || true)
+            if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+              echo "MLflow server is up after ${i} attempt(s)."
+              break
+            fi
+            sleep 2
+          done
       - name: Model Building
         run: python tourism_project/model_building/train.py
       - name: Commit Trained Model
